@@ -1,6 +1,6 @@
-//This is software for an Arduino UNO + display board + protoboard stack to control Sarah's glass fusing kiln.
-//I ran through version 1 of the software with a test program on the actual kiln.  It ran up to 1000 degrees at the proper controlled rate.  
-//In this version I wish to fix the following:
+//This is software for an Arduino UNO + display board + protoboard stack to control Sarah's glass fusing kiln. 
+
+//In this version I have fixed the following:
 //1. DONE - Allow the cooling rate to also be controlled.
 //2. DONE - Add an asterisk to the edit menu to indicate which program will be edited.
 //3. DONE - Add an asterisk to the run menu to indicate which program will be run.
@@ -15,6 +15,13 @@
 //January 2014
 //are.kay.more@gmail.com
 //Not tested for safety.  Use or modify at your own risk.  
+
+//Feb 22, 2014
+//Fixed a couple of bugs.  This one makes sure that the displayed numbers don't have an old uncleared extra place value.  
+
+//April 24, 2014
+//Kiln stayed on even after program was complete.  Now I have it set the relay coil OFF once a minute during the "Program Complete" phase.  
+//It also shows the temperature after the program is complete now.  
 
 // include the library code:
 #include <Wire.h>
@@ -374,6 +381,7 @@ void loop() {
       switch (currStageState) {
         case 1:
           //Heating
+          //I need to add an lcd.clear and write all the necessary info to the screen each time to avoid uncleared place values.  
           currRunTime = millis() - currStageStartTime;
           //There are different expressions to find planTemp depending on if it's heating or cooling.
           if (heatIncreaseFlag) 
@@ -385,6 +393,13 @@ void loop() {
             planTemp = double(currInitTemp) - double(currRate)*double(10)*(double(currRunTime)/(double(1000)*double(60)*double(60)));
           }
           currTemp = thermocouple.readFarenheit(); //Get the current temperature*********
+          //
+          lcd.clear();
+          lcd.setCursor(0,0);
+          lcd.print("Stg:");
+          lcd.print(currStage);
+          lcd.print("           ");
+          //
           lcd.setCursor(0,1);
           lcd.print("Act:");
           lcd.print(int(currTemp));
@@ -421,6 +436,13 @@ void loop() {
         case 2:
           //Holding
           currTemp = thermocouple.readFarenheit(); 
+          //
+          lcd.clear();
+          lcd.setCursor(0,0);
+          lcd.print("Stg:");
+          lcd.print(currStage);
+          lcd.print("           ");
+          //
           lcd.setCursor(0,1);
           lcd.print("Act:");
           lcd.print(int(currTemp));
@@ -452,29 +474,44 @@ void loop() {
           break;
         case 3:
           //Stage finished
-          currStageState = 1;
           currStage = currStage + 1;
-          lcd.setCursor(0,0);
-          lcd.print("Stg:");
-          lcd.print(currStage);
-          lcd.print("           ");
-          currHoldTime = EEPROM.read(prgStart+10+(currStage-1)*3+2);
-          currRate = EEPROM.read(prgStart+10+(currStage-1)*3+1);
-          //currTgtTemp = 10*double(EEPROM.read(prgStart+10+(currStage-1)*3));
-          currTgtTemp = 500+5*double(EEPROM.read(prgStart+10+(currStage-1)*3));
-          currStageStartTime = millis();
-          currInitTemp = thermocouple.readFarenheit();
-          if (currTgtTemp>currInitTemp) {
-            heatIncreaseFlag = 1;
-          }
-          else
+          if (currStage>=11)
           {
-            heatIncreaseFlag = 0;
-          }
-          if (currStage==11) {
             lcd.clear();
             lcd.setCursor(0,0);
             lcd.print("Program Complete");
+            //Also, display the temperature:
+            currTemp = thermocouple.readFarenheit();
+            lcd.setCursor(0,1);
+            lcd.print("Act:");
+            lcd.print(int(currTemp));
+            //Force the coil relay to be OFF:
+            digitalWrite(13, LOW);
+            //There's got to be a better way to exit the program, but for now I'll just stay in a delay loop.  
+            delay(60000);//Right now this is set to a minute.
+          }
+          else
+          {
+            currStageState = 1;
+            //currStage = currStage + 1;
+            lcd.clear();
+            lcd.setCursor(0,0);
+            lcd.print("Stg:");
+            lcd.print(currStage);
+            lcd.print("           ");
+            currHoldTime = EEPROM.read(prgStart+10+(currStage-1)*3+2);
+            currRate = EEPROM.read(prgStart+10+(currStage-1)*3+1);
+            //currTgtTemp = 10*double(EEPROM.read(prgStart+10+(currStage-1)*3));
+            currTgtTemp = 500+5*double(EEPROM.read(prgStart+10+(currStage-1)*3));
+            currStageStartTime = millis();
+            currInitTemp = thermocouple.readFarenheit();
+            if (currTgtTemp>currInitTemp) {
+              heatIncreaseFlag = 1;
+            }
+            else
+            {
+              heatIncreaseFlag = 0;
+            }
           }
           break;
       }
