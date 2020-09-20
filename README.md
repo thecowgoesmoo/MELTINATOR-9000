@@ -9,3 +9,6 @@ This is a temperature controller for a glass fusing kiln.  It runs on an Arduino
 
 Use at your own risk.  No warranty expressed or implied.  
 
+<img src="MELTINATOR-kiln.jpg" alt="ooooooh">
+
+<img src="MELTINATOR-controller.jpg" alt="aaaaaaahhh">
